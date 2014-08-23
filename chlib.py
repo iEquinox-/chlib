@@ -84,7 +84,7 @@ class Generate:
 #Represents event objects
 ################################
 
-class Event:
+class Event(object):
 
 	def __init__(self, group, name, interval, delay, target, *args):
 		self.name = name
@@ -122,7 +122,7 @@ class Event:
 #Represents connection objects
 ################################
 
-class Group:
+class Group(object):
 
 	def __init__(self, manager, group, user, password, uid, pm):
 
@@ -183,22 +183,26 @@ class Group:
 		wbuf = b""
 		try:
 			rSock, wSock, eSock = select.select([self.chSocket], [self.chSocket], [self.chSocket])
-		except OSError:
-			pass
+		except:
+			self.manager.removeGroup(self)
 		if wSock:
 			try:
 				wbuf = self.wqueue.get_nowait()
 				self.chSocket.send(wbuf)
 			except queue.Empty:
 				pass
+			except socket.error:
+				self.manager.removeGroup(self)
+			except:
+				self.manager.removeGroup(self)
 		if rSock:
 			while not rbuf.endswith(b'\x00'):
 				try:
 					rbuf += self.chSocket.recv(1024) #need the WHOLE buffer ;D
 				except:
-					self.manager.removeGroup(self)
+					self.manager.removeGroup(self.name)
 			if len(rbuf) > 0:
-				self.manager.decode(self, rbuf)
+				self.manager.manage(self, rbuf)
 
 	def ping(self):
 		'''Ping? Pong!'''
@@ -311,10 +315,13 @@ class Group:
 		'''Delete all of a user's posts'''
 		post = self.getLastPost(user)
 		unid = None
-		if post:unid = post.unid
+		if post:
+			unid = post.unid
 		if unid:
-			if post.user[0] in ["!","#"]:self.sendCmd("delallmsg", unid, post.ip, "")
-			else:self.sendCmd("delallmsg", unid, post.ip, post.user)
+			if post.user[0] in ["!","#"]:
+				self.sendCmd("delallmsg", unid, post.ip, "")
+			else:
+				self.sendCmd("delallmsg", unid, post.ip, post.user)
 
 	def ban(self, user):
 		'''Ban a user'''
@@ -363,12 +370,201 @@ class Group:
 				if post and hasattr(post, "unid"):
 					self.dlUser(user)
 
+class Digest(object):
+
+	def __init__(self, manager):
+		self.manager = manager
+
+	def digest(self, group, raw):
+		bites = raw.decode("latin-1").rstrip("\r\n").split(":")
+		if hasattr(self, bites[0]):
+			getattr(self, bites[0])(group, bites)
+
+	def call(self, function, *args):
+		if hasattr(self.manager, "recv"+function):
+			getattr(self.manager, "recv"+function)(*args)
+
+	def denied(self, group, bites):
+		self.manager.removeGroup(group)
+
+	def ok(self, group, bites):
+		if bites[3] != 'M':
+			self.manager.removeGroup(group.name)
+		else:
+			group.owner = bites[1]
+			group.time = bites[5]
+			group.ip = bites[6]
+			group.mods = bites[7].split(';')
+			group.mods.sort()
+
+
+	def inited(self, group, bites):
+		group.sendCmd("blocklist", "block", "", "next", "500")
+		group.sendCmd("g_participants", "start")
+		group.sendCmd("getbannedwords")
+		group.sendCmd("getratelimit")
+		self.manager.recvinited(group)
+
+	def premium(self, group, bites):
+		if int(bites[2]) > time.time():
+			group.sendCmd("msgbg", "1")
+
+	def g_participants(self, group, bites):
+		pl = ":".join(bites[1:]).split(";")
+		for p in pl:
+			p = p.split(":")[:-1]
+			if p[-2] != "None" and p[-1] == "None": group.users.append(p[-2].lower())
+		group.users.sort()
+
+	def blocklist(self, group, bites):
+		if bites[1]:
+			blklist = (":".join(bites[1:])).split(";")
+			for banned in blklist:
+				bData = banned.split(":")
+				group.blist.append(type("BannedUser", (object,), {"unid": bData[0], "ip": bData[1], "user": bData[2], "uid": bData[3], "mod": bData[4]}))
+			lastUid = group.blist[-1].uid
+			group.sendCmd("blocklist", "block", lastUid, "next", "500")
+
+	def bw(self, group, bites):
+		group.bw = bites[2].split("%2C")
+
+	def participant(self, group, bites):
+		username = None
+		if (bites[1] == '0') and (bites[4] != "None") and (bites[4].lower() in group.users):
+			group.users.remove(bites[4].lower())
+		if (bites[1] == '1') and (bites[-4] != "None"):
+			group.users.append(bites[4].lower())
+			group.users.sort()
+		if bites[1] == '2':
+			post = group.getLastPost(bites[3], data="uid")
+			username = post.user if post else None
+			if (bites[4] == "None") and (username in group.users):
+				group.users.remove(username)
+			if (bites[4] != "None") and (bites[4] not in group.users):
+				group.users.append(bites[4])
+		if username:
+			self.call(bites[0], group, bites[1], group, username, bites[3])
+
+	def ratelimited(self, group, bites):
+		group.limit = int(bites[1])
+
+	def getratelimit(self, group, bites):
+		group.limit = int(bites[1])
+		group.limited = int(bites[2])
+
+	def b(self, group, bites):
+		try:
+			fTag = re.search("<f x(.*?)>", bites[10]).group(1)
+			fSize = fTag[:2]
+			fFace = re.search("(.*?)=\"(.*?)\"", fTag).group(2)
+			fColor = re.search(fSize+"(.*?)=\""+fFace+"\"", fTag).group(1)
+		except:
+			fSize = "11"
+			fColor = "000"
+			fFace = "0"
+		group.pArray[bites[6]] = type("Post", (object,), {"group": group, "time": bites[1], "user": bites[2].lower() if bites[2] != '' else "#" + bites[3] if bites[3] != '' else "!anon" + Generate.aid(self, re.search("<n(.*?)/>", bites[10]).group(1), bites[4]) if re.search("<n(.*?)/>", bites[10]) != None else "!anon" , "uid": bites[4], "unid": bites[5], "pnum": bites[6], "ip": bites[7], "post": re.sub("<(.*?)>", "", ":".join(bites[10:])).replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&"), "nColor": re.search("<n(.*?)/>", bites[10]).group(1) if re.search("<n(.*?)/>", bites[10]) else "000", "fSize": fSize, "fFace": fFace, "fColor": fColor})
+
+	def u(self, group, bites):
+		post = group.pArray[bites[1]] if group.pArray.get(bites[1]) else None
+		if post:
+			setattr(post, "pid", bites[2])
+			if post.post: #not blank post
+				self.call("Post", group, post.user, post)
+				if post.post[0] == self.manager.prefix:
+					self.call("Command", group, post.user, group.getAuth(post.user), post, post.post.split()[0][1:].lower(), " ".join(post.post.split()[1:]))
+
+	def n(self, group, bites):
+		group.unum = bites[1]
+
+	def mods(self, group, bites):
+		mlist = bites[1:]
+		mod = ""
+		if len(mlist) < len(group.mods):
+			mod = [m for m in group.mods if m not in mlist][0]
+			group.mods.remove(mod)
+			self.call(bites[0], group, False, group, mod)
+		if len(mlist) > len(group.mods):
+			mod = [m for m in mlist if m not in group.mods][0]
+			group.mods.append(mod)
+			self.call(bites[0], group, True, group, mod)
+
+	def deleteall(self, group, bites):
+		for pid in bites[1:]:
+			deleted = group.getLastPost(pid, "pid")
+			if deleted:
+				del group.pArray[deleted.pnum]
+				self.call(bites[0], group, deleted)
+
+	def delete(self, group, bites):
+		deleted = group.getLastPost(bites[1], "pid")
+		if deleted:
+			del group.pArray[deleted.pnum]
+			self.call(bites[0], group, deleted)
+
+	def blocked(self, group, bites):
+		group.getBanList()
+		if bites[3]:
+			self.call(bites[0], group, bites[3], bites[4])
+		else:
+			post = group.getLastPost(bites[1], "unid")
+			if post:
+				self.call(bites[0], group, post.user, bites[4])
+
+	def unblocked(self, group, bites):
+		if group.name == self.user:
+			group.bl.remove(bites[1])
+		else:
+			if bites[3]:
+				group.getBanList()
+				self.call(bites[0], group, bites[3], bites[4])
+			else:
+				self.call(bites[0], group, "Non-member", bites[4])
+
+	def logoutok(self, group, bites):
+		group.user = "!anon" + Generate.aid(self, group.nColor, group.uid)
+
+	def clearall(self, group, bites):
+		if bites[1] == "ok":
+			group.pArray = {}
+
+	def kickingoff(self, group, bites):
+		self.call(bites[0], group)
+
+	def toofast(self, group, bites):
+		self.call(bites[0], group)
+
+	def tb(self, group, bites):
+		mins, secs = divmod(int(bites[1]), 60)
+		self.call(bites[0], group, mins, secs)
+
+	def show_tb(self, group, bites):
+		mins, secs = divmod(int(bites[1]), 60)
+		self.call(bites[0], group, mins, secs)
+
+	def OK(self, group, bites):
+		group.sendCmd("wl")
+		self.call(bites[0], group)
+
+	def wl(self, group, bites):
+		if len(bites) >= 4:
+			for i in range(1, len(bites), 4):
+				group.fl.append({"user": bites[i], "time": bites[i+1], "status": bites[i+2]})
+
+	def wladd(self, group, bites):
+		group.fl.append({"user": bites[1], "status": bites[2], "time": bites[3]})
+
+	def msg(self, group, bites):
+		self.call(bites[0], group, bites[1], group.cleanPM(":".join(bites[6:])))
+
+	def msgoff(self, group, bites):
+		self.call(bites[0], group, bites[1], group.cleanPM(":".join(bites[6:])))
+
 ################################
 #Connections Manager
 #Handles: New Connections and Connection data
 ################################
 
-class ConnectionManager:
+class ConnectionManager(object):
 
 	def __init__(self, user, password, pm):
 		self.user = user.lower()
@@ -379,6 +575,7 @@ class ConnectionManager:
 		self.wbuf = b""
 		self.uid = str(int(random.randrange(10 ** 15, (10 ** 16) - 1)))
 		self.prefix = None
+		self.acid = Digest(self)
 		self.connected = any([x.connected for x in self.cArray])
 
 	def stop(self):
@@ -437,198 +634,19 @@ class ConnectionManager:
 		'''Send data to socket'''
 		self.getGroup(self.user).wqueue.put_nowait(bytes(':'.join(args)+"\r\n\x00", "utf-8"))
 
-	def manage(self, group, cmd, bites):
-		'''Manage socket data'''
-		args = [group]
-
-		if cmd == "denied":
-			self.removeGroup(group)
-
-		elif cmd == "ok":
-			if bites[3] != 'M':
-				self.removeGroup(group.name)
-			else:
-				group.owner = bites[1]
-				group.time = bites[5]
-				group.ip = bites[6]
-				group.mods = bites[7].split(';')
-				group.mods.sort()
-
-		elif cmd == "inited":
-			group.sendCmd("blocklist", "block", "", "next", "500")
-			group.sendCmd("g_participants", "start")
-			group.sendCmd("getbannedwords")
-			group.sendCmd("getratelimit")
-
-		elif cmd == "premium":
-			if int(bites[2]) > time.time():
-				group.sendCmd("msgbg", "1")
-
-		elif cmd == "g_participants":
-			pl = ":".join(bites[1:]).split(";")
-			for p in pl:
-				p = p.split(":")[:-1]
-				if p[-2] != "None" and p[-1] == "None": group.users.append(p[-2].lower())
-			group.users.sort()
-
-		elif cmd == "blocklist":
-			if bites[1]:
-				blklist = (":".join(bites[1:])).split(";")
-				for banned in blklist:
-					bData = banned.split(":")
-					group.blist.append(type("BannedUser", (object,), {"unid": bData[0], "ip": bData[1], "user": bData[2], "uid": bData[3], "mod": bData[4]}))
-				lastUid = group.blist[-1].uid
-				group.sendCmd("blocklist", "block", lastUid, "next", "500")
-
-		elif cmd == "bw":
-			group.bw = bites[2].split("%2C")
-
-		elif cmd == 'participant':
-			user = None
-			if (bites[1] == '0') and (bites[4] != "None") and (bites[4].lower() in group.users):
-				group.users.remove(bites[4].lower())
-			if (bites[1] == '1') and (bites[-4] != "None"):
-				group.users.append(bites[4].lower())
-				group.users.sort()
-			if bites[1] == '2':
-				post = group.getLastPost(bites[3], data="uid")
-				username = post.user if post else None
-				if (bites[4] == "None") and (username in group.users):
-					group.users.remove(username)
-				if (bites[4] != "None") and (bites[4] not in group.users):
-					group.users.append(bites[4])
-			args = [bites[1], group, user, bites[3]]
-
-		elif cmd == "ratelimited":
-			group.limit = int(bites[1])
-
-		elif cmd == "getratelimit":
-			group.limit = int(bites[1])
-			group.limited = int(bites[2])
-
-		elif cmd == 'b':
-			try:
-				fTag = re.search("<f x(.*?)>", bites[10]).group(1)
-				fSize = fTag[:2]
-				fFace = re.search("(.*?)=\"(.*?)\"", fTag).group(2)
-				fColor = re.search(fSize+"(.*?)=\""+fFace+"\"", fTag).group(1)
-			except:
-				fSize = "11"
-				fColor = "000"
-				fFace = "0"
-			group.pArray[bites[6]] = type("Post", (object,), {"group": group, "time": bites[1], "user": bites[2].lower() if bites[2] != '' else "#" + bites[3] if bites[3] != '' else "!anon" + Generate.aid(self, re.search("<n(.*?)/>", bites[10]).group(1), bites[4]) if re.search("<n(.*?)/>", bites[10]) != None else "!anon" , "uid": bites[4], "unid": bites[5], "pnum": bites[6], "ip": bites[7], "post": re.sub("<(.*?)>", "", ":".join(bites[10:])).replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&"), "nColor": re.search("<n(.*?)/>", bites[10]).group(1) if re.search("<n(.*?)/>", bites[10]) else "000", "fSize": fSize, "fFace": fFace, "fColor": fColor})
-
-		elif cmd == 'u':
-			try:
-				post = group.pArray[bites[1]]
-				setattr(post, "pid", bites[2])
-				if post.post: #not blank post
-					self.recvPost(post.user, group, group.getAuth(post.user), post)
-					if post.post[0] == self.prefix:
-						self.recvCommand(post.user, group, group.getAuth(post.user), post, post.post.split()[0][1:].lower(), " ".join(post.post.split()[1:]))
-			except KeyError:
-				pass
-
-		elif cmd == "n":
-			group.unum = bites[1]
-
-		elif cmd == "mods":
-			mlist = bites[1:]
-			mod = ""
-			if len(mlist) < len(group.mods):
-				mod = [m for m in group.mods if m not in mlist][0]
-				group.mods.remove(mod)
-				args = [False, group, mod]
-			if len(mlist) > len(group.mods):
-				mod = [m for m in mlist if m not in group.mods][0]
-				group.mods.append(mod)
-				args = [True, group, mod]
-
-		elif cmd == "deleteall":
-			for pid in bites[1:]:
-				deleted = group.getLastPost(pid, "pid")
-				if deleted:
-					args = [group, deleted]
-					del group.pArray[deleted.pnum]
-				else:
-					args = [group, None]
-
-		elif cmd == "delete":
-			deleted = group.getLastPost(bites[1], "pid")
-			if deleted:
-				args = [group, deleted]
-				del group.pArray[deleted.pnum]
-			else:
-				args = [group, None]
-
-		elif cmd == "blocked":
-			if bites[3]:
-				args = [group, bites[3], bites[4]]
-			else:
-				post = group.getLastPost(bites[1], "unid")
-				if post: args = [group, post.user, bites[4]]
-			group.getBanList()
-
-		elif cmd == "unblocked":
-			if group.name == self.user:
-				group.bl.remove(bites[1])
-			else:
-				if bites[3]:
-					group.getBanList()
-					args = [group, bites[3], bites[4]]
-				else: args = [group, "Non-member", bites[4]]
-
-		elif cmd == "logoutok":
-			group.user = "!anon" + Generate.aid(self, group.nColor, group.uid)
-
-		elif cmd == "clearall":
-			if bites[1] == "ok": group.pArray = {}
-
-		elif cmd == "kickingoff":
-			args = [group.name]
-
-		elif cmd == "toofast":
-			args = [group.name]
-
-		elif cmd == "tb":
-			mins, secs = divmod(int(bites[1]), 60)
-			args = [group, mins, secs]
-			
-		elif cmd == "show_tb":
-			mins, secs = divmod(int(bites[1]), 60)
-			args = [group, mins, secs]
-
-		elif cmd == "OK":
-			group.sendCmd("wl")
-
-		elif cmd == "wl":
-			if len(bites) >= 4:
-				for i in range(1, len(bites), 4):
-					group.fl.append({"user": bites[i], "time": bites[i+1], "status": bites[i+2]})
-
-		elif cmd == "wladd":
-			group.fl.append({"user": bites[1], "status": bites[2], "time": bites[3]})
-
-		elif cmd == "msg":
-			args = [bites[1], group.cleanPM(":".join(bites[6:]))]
-
-		elif cmd == "msgoff":
-			args = [bites[1], group.cleanPM(":".join(bites[6:]))]
-
-		if hasattr(self, "recv"+cmd) and None not in args:
-			getattr(self, "recv"+cmd)(*args)
-
-	def decode(self, group, buffer):
-		'''feed data to manager'''
-		buffer = buffer.split(b"\x00")
+	def manage(self, group, data):
+		buffer = data.split(b"\x00")
 		for raw in buffer:
 			if raw:
-				data = raw.decode("latin-1").rstrip("\r\n").split(":")
-				self.manage(group, data[0], data)
+				self.acid.digest(group, raw)
 
 	def main(self):
 		self.start()
 		if self.pm:
 			self.addGroup(self.user)
 		while self.connected:
-			time.sleep(0.1)
+			try:
+				time.sleep(1)
+			except KeyboardInterrupt:
+				self.stop()
+				exit(0)
