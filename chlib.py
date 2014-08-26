@@ -511,7 +511,7 @@ class Digest(object):
 				self.call(bites[0], group, post.user, bites[4])
 
 	def unblocked(self, group, bites):
-		if group.name == self.user:
+		if group.name == group.user:
 			group.bl.remove(bites[1])
 		else:
 			if bites[3]:
