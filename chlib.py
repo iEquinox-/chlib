@@ -443,7 +443,7 @@ class Digest(object):
 			if (bites[4] != "None") and (bites[4] not in group.users):
 				group.users.append(bites[4])
 		if username:
-			self.call(bites[0], group, bites[1], group, username, bites[3])
+			self.call(bites[0], group, bites[1], username, bites[3])
 
 	def ratelimited(self, group, bites):
 		group.limit = int(bites[1])
@@ -482,11 +482,11 @@ class Digest(object):
 		if len(mlist) < len(group.mods):
 			mod = [m for m in group.mods if m not in mlist][0]
 			group.mods.remove(mod)
-			self.call(bites[0], group, False, group, mod)
+			self.call(bites[0], group, False, mod)
 		if len(mlist) > len(group.mods):
 			mod = [m for m in mlist if m not in group.mods][0]
 			group.mods.append(mod)
-			self.call(bites[0], group, True, group, mod)
+			self.call(bites[0], group, True, mod)
 
 	def deleteall(self, group, bites):
 		for pid in bites[1:]:
