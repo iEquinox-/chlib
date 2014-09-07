@@ -423,7 +423,7 @@ class Digest(object):
 			blklist = (":".join(bites[1:])).split(";")
 			for banned in blklist:
 				bData = banned.split(":")
-				group.blist.append(type("BannedUser", (object,), {"unid": bData[0], "ip": bData[1], "user": bData[2], "uid": bData[3], "mod": bData[4]}))
+				group.blist.append(type("BannedUser", (object,), {"unid": bData[0], "ip": bData[1], "user": bData[2], "time": bData[3], "mod": bData[4]}))
 			lastUid = group.blist[-1].uid
 			group.sendCmd("blocklist", "block", lastUid, "next", "500")
 
