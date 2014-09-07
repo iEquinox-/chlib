@@ -527,7 +527,7 @@ class Digest(object):
 				self.call(bites[0], group, "Non-member", bites[4])
 
 	def logoutok(self, group, bites):
-		group.user = "!anon" + Generate.aid(self, group.nColor, group.uid)
+		self.manager.user = "!anon" + Generate.aid(self, group.nColor, group.uid)
 
 	def clearall(self, group, bites):
 		if bites[1] == "ok":
