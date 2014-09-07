@@ -148,6 +148,7 @@ class Group(object):
 			self.limited = 0
 			self.unum = None
 			self.pArray = {}
+			self.uArray = {}
 			self.users = list()
 			self.bw = list()
 			self.mods = list()
@@ -397,7 +398,6 @@ class Digest(object):
 			group.mods = bites[7].split(';')
 			group.mods.sort()
 
-
 	def inited(self, group, bites):
 		group.sendCmd("blocklist", "block", "", "next", "500")
 		group.sendCmd("g_participants", "start")
@@ -413,7 +413,9 @@ class Digest(object):
 		pl = ":".join(bites[1:]).split(";")
 		for p in pl:
 			p = p.split(":")[:-1]
-			if p[-2] != "None" and p[-1] == "None": group.users.append(p[-2].lower())
+			if p[-2] != "None" and p[-1] == "None":
+				group.users.append(p[-2].lower())
+				group.uArray[p[-3]] = p[-2].lower()
 		group.users.sort()
 
 	def blocklist(self, group, bites):
@@ -429,21 +431,25 @@ class Digest(object):
 		group.bw = bites[2].split("%2C")
 
 	def participant(self, group, bites):
-		username = None
 		if (bites[1] == '0') and (bites[4] != "None") and (bites[4].lower() in group.users):
-			group.users.remove(bites[4].lower())
+			user = bites[4].lower()
+			group.users.remove(user)
+			group.users.sort()
 		if (bites[1] == '1') and (bites[-4] != "None"):
-			group.users.append(bites[4].lower())
+			user = bites[4].lower()
+			group.users.append(user)
 			group.users.sort()
 		if bites[1] == '2':
-			post = group.getLastPost(bites[3], data="uid")
-			username = post.user if post else None
-			if (bites[4] == "None") and (username in group.users):
-				group.users.remove(username)
-			if (bites[4] != "None") and (bites[4] not in group.users):
-				group.users.append(bites[4])
-		if username:
-			self.call(bites[0], group, bites[1], username, bites[3])
+			user = group.uArray[bites[3]].lower() if bites[3].lower() in group.uArray and bites[4] == "None" else bites[4].lower()
+			if (bites[4] == "None") and (user in group.users):
+				group.users.remove(user.lower())
+				user = group.uArray[bites[3]]
+				del group.uArray[bites[3]]
+			if (bites[4] != "None") and (user not in group.users):
+				group.users.append(user)
+				group.uArray[bites[3]] = user
+			group.users.sort()
+		self.call(bites[0], group, bites[1], user, bites[3])
 
 	def ratelimited(self, group, bites):
 		group.limit = int(bites[1])
