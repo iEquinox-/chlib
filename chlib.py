@@ -28,7 +28,6 @@ import select
 weights = [['5', 75], ['6', 75], ['7', 75], ['8', 75], ['16', 75], ['17', 75], ['18', 75], ['9', 95], ['11', 95], ['12', 95], ['13', 95], ['14', 95], ['15', 95], ['19', 110], ['23', 110], ['24', 110], ['25', 110], ['26', 110], ['28', 104], ['29', 104], ['30', 104], ['31', 104], ['32', 104], ['33', 104], ['35', 101], ['36', 101], ['37', 101], ['38', 101], ['39', 101], ['40', 101], ['41', 101], ['42', 101], ['43', 101], ['44', 101], ['45', 101], ['46', 101], ['47', 101], ['48', 101], ['49', 101], ['50', 101], ['52', 110], ['53', 110], ['55', 110], ['57', 110], ['58', 110], ['59', 110], ['60', 110], ['61', 110], ['62', 110], ['63', 110], ['64', 110], ['65', 110], ['66', 110], ['68', 95], ['71', 116], ['72', 116], ['73', 116], ['74', 116], ['75', 116], ['76', 116], ['77', 116], ['78', 116], ['79', 116], ['80', 116], ['81', 116], ['82', 116], ['83', 116], ['84', 116]]
 specials = {"de-livechat": 5, "ver-anime": 8, "watch-dragonball": 8, "narutowire": 10, "dbzepisodeorg": 10, "animelinkz": 20, "kiiiikiii": 21, "soccerjumbo": 21, "vipstand": 21, "cricket365live": 21, "pokemonepisodeorg": 22, "watchanimeonn": 22, "leeplarp": 27, "animeultimacom": 34, "rgsmotrisport": 51, "cricvid-hitcric-": 51, "tvtvanimefreak": 54, "stream2watch3": 56, "mitvcanal": 56, "sport24lt": 56, "ttvsports": 56, "eafangames": 56, "myfoxdfw": 67, "peliculas-flv": 69, "narutochatt": 70}
 
-
 def getServer(group):
 	'''Return server number'''
 	s_num = None
@@ -86,13 +85,14 @@ class Generate:
 
 class Event(object):
 
-	def __init__(self, group, name, interval, delay, target, *args):
+	def __init__(self, manager, group, name, interval, delay, target, *args):
+		self.manager = manager
 		self.name = name
 		self.interval = interval
 		self.delay = delay
 		self.target = target
 		self.group = group
-		if hasattr(self.group, self.target) and not self.group.getEvent(self.name):
+		if hasattr(self.group, self.target) and not self.manager.getEvent(self.group, self.name):
 			if self.interval > 0:
 				self.loop = True
 				self.thread = threading.Timer(interval, self.create, args=(args))
@@ -102,7 +102,7 @@ class Event(object):
 			self.active = True
 			self.thread.daemon = True
 			self.thread.start()
-			self.group.events.append(self)
+			self.manager.eArray[self.group.name].append(self)
 
 	def create(self, *args):
 		if self.delay > 0:
@@ -116,7 +116,7 @@ class Event(object):
 
 	def cancel(self):
 		self.active = False
-		self.group.events.remove(self)
+		self.manager.eArray[self.group.name].remove(self)
 
 ################################
 #Represents connection objects
@@ -134,7 +134,7 @@ class Group(object):
 		self.pm = pm
 		self.chSocket = None
 		self.wqueue = queue.Queue()
-		self.events = list()
+		self.manager.eArray[self.name] = list()
 		self.loginFail = False
 		self.uid = str(int(random.randrange(10 ** 15, (10 ** 16) - 1)))
 		self.fSize = "11"
@@ -176,8 +176,8 @@ class Group(object):
 			self.sendCmd("tlogin", self.pmAuth, "2", self.uid, firstcmd=True)
 		self.connected = True
 		self.manager.connected = True
-		Event(self, self.name, 0.1, 0, "manage")
-		Event(self, "ping", 20, 0, "ping")
+		Event(self.manager, self, self.name, 0.1, 0, "manage")
+		Event(self.manager, self, "ping", 20, 0, "ping")
 
 	def manage(self):
 		rbuf = b""
@@ -239,10 +239,6 @@ class Group(object):
 		except:
 			post = None
 		return post
-
-	def getEvent(self, name):
-		event = [x for x in self.events if x.name == name]
-		return event[0] if event else None
 
 	def login(self, user, password = None):
 		'''Login to an account or as a temporary user or anon'''
@@ -576,9 +572,12 @@ class ConnectionManager(object):
 
 	def __init__(self, user, password, pm):
 		self.user = user.lower()
+		self.name = self.user
 		self.password = password
 		self.pm = pm
 		self.cArray = list()
+		self.eArray = dict()
+		self.eArray[self.name] = list()
 		self.groups = list()
 		self.wbuf = b""
 		self.uid = str(int(random.randrange(10 ** 15, (10 ** 16) - 1)))
@@ -608,12 +607,16 @@ class ConnectionManager(object):
 			self.cArray.remove(group)
 			if group.name != self.user:
 				self.groups.remove(group.name)
-			for event in group.events:
+			for event in self.eArray[group.name]:
 				event.cancel()
 			group.chSocket.close()
 			self.recvRemove(group)
 		if not self.cArray:
 			self.connected = False
+
+	def getEvent(self, group, name):
+		event = [x for x in self.eArray[group.name] if x.name == name]
+		return event[0] if event else None
 
 	def getGroup(self, group):
 		'''Get a group object'''
