@@ -479,14 +479,14 @@ class Digest(object):
 		group.unum = bites[1]
 
 	def mods(self, group, bites):
-		mlist = bites[1:]
+		mlist = [x.split(',')[0] for x in bites[1:]]
 		mod = ""
 		if len(mlist) < len(group.mods):
 			mod = [m for m in group.mods if m not in mlist][0]
 			group.mods.remove(mod)
 			group.mods.sort()
 			self.call(bites[0], group, False, mod)
-		if len(mlist) > len(group.mods):
+		elif len(mlist) > len(group.mods):
 			mod = [m for m in mlist if m not in group.mods][0]
 			group.mods.append(mod)
 			group.mods.sort()
