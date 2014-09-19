@@ -391,7 +391,7 @@ class Digest(object):
 			group.owner = bites[1]
 			group.time = bites[5]
 			group.ip = bites[6]
-			group.mods = bites[7].split(';')
+			group.mods = [x.split(',')[0] for x in bites[7].split(';')]
 			group.mods.sort()
 
 	def inited(self, group, bites):
