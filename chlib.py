@@ -424,7 +424,7 @@ class Digest(object):
 			group.sendCmd("blocklist", "block", lastTime, "next", "500")
 
 	def bw(self, group, bites):
-		group.bw = bites[2].split("%2C")
+		group.bw = bites[1].split("%2C")
 
 	def participant(self, group, bites):
 		if (bites[1] == '0') and (bites[4] != "None") and (bites[4].lower() in group.users):
