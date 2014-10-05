@@ -399,7 +399,7 @@ class Digest(object):
 		group.sendCmd("g_participants", "start")
 		group.sendCmd("getbannedwords")
 		group.sendCmd("getratelimit")
-		self.manager.recvinited(group)
+		self.call(bites[0], group)
 
 	def premium(self, group, bites):
 		if int(bites[2]) > time.time():
@@ -427,25 +427,29 @@ class Digest(object):
 		group.bw = bites[1].split("%2C")
 
 	def participant(self, group, bites):
-		if (bites[1] == '0') and (bites[4] != "None") and (bites[4].lower() in group.users):
+		bit = bites[1]
+		uid = bites[3]
+		if bites[1] == '0':
 			user = bites[4].lower()
-			group.users.remove(user)
+			if bites[4] != "None" and bites[4].lower() in group.users:
+				group.users.remove(user)
 			group.users.sort()
-		if (bites[1] == '1') and (bites[-4] != "None"):
+		if bites[1] == '1':
 			user = bites[4].lower()
-			group.users.append(user)
+			if bites[-4] != "None":
+				group.users.append(user)
 			group.users.sort()
 		if bites[1] == '2':
-			user = group.uArray[bites[3]].lower() if bites[3].lower() in group.uArray and bites[4] == "None" else bites[4].lower()
+			user = group.uArray[uid].lower() if uid.lower() in group.uArray and bites[4] == "None" else bites[4].lower()
 			if (bites[4] == "None") and (user in group.users):
 				group.users.remove(user.lower())
-				user = group.uArray[bites[3]]
-				del group.uArray[bites[3]]
+				user = group.uArray[uid]
+				del group.uArray[uid]
 			if (bites[4] != "None") and (user not in group.users):
 				group.users.append(user)
-				group.uArray[bites[3]] = user
+				group.uArray[uid] = user
 			group.users.sort()
-		self.call(bites[0], group, bites[1], user, bites[3])
+		self.call(bites[0], group, bit, user, uid)
 
 	def ratelimited(self, group, bites):
 		group.limit = int(bites[1])
@@ -471,26 +475,32 @@ class Digest(object):
 		if post:
 			setattr(post, "pid", bites[2])
 			if post.post: #not blank post
-				self.call("Post", group, post.user, post)
+				user = post.user
+				self.call("Post", group, user, post)
 				if post.post[0] == self.manager.prefix:
-					self.call("Command", group, post.user, group.getAuth(post.user), post, post.post.split()[0][1:].lower(), " ".join(post.post.split()[1:]))
+					auth = group.getAuth(post.user)
+					cmd = post.post.split()[0][1:].lower()
+					args = post.post.split()[1:]
+					self.call("Command", group, user, auth, post, cmd, args)
 
 	def n(self, group, bites):
 		group.unum = bites[1]
 
 	def mods(self, group, bites):
+		modded = None
 		mlist = [x.split(',')[0] for x in bites[1:]]
 		mod = ""
 		if len(mlist) < len(group.mods):
 			mod = [m for m in group.mods if m not in mlist][0]
 			group.mods.remove(mod)
 			group.mods.sort()
-			self.call(bites[0], group, False, mod)
+			modded = False
 		elif len(mlist) > len(group.mods):
 			mod = [m for m in mlist if m not in group.mods][0]
 			group.mods.append(mod)
 			group.mods.sort()
-			self.call(bites[0], group, True, mod)
+			modded = True
+		self.call(bites[0], group, modded, mod)
 
 	def deleteall(self, group, bites):
 		for pid in bites[1:]:
@@ -507,20 +517,25 @@ class Digest(object):
 
 	def blocked(self, group, bites):
 		group.getBanList()
+		mod = bites[4]
 		if bites[3]:
-			self.call(bites[0], group, bites[3], bites[4])
+			user = bites[3]
+			self.call(bites[0], group, user, mod)
 		else:
 			post = group.getLastPost(bites[1], "unid")
 			if post:
-				self.call(bites[0], group, post.user, bites[4])
+				user = post.user
+				self.call(bites[0], group, user, mod)
 
 	def unblocked(self, group, bites):
 		if group.name == group.user:
 			group.bl.remove(bites[1])
 		else:
+			mod = bites[4]
 			if bites[3]:
+				user = bites[3]
 				group.getBanList()
-				self.call(bites[0], group, bites[3], bites[4])
+				self.call(bites[0], group, user, mod)
 			else:
 				self.call(bites[0], group, "Non-member", bites[4])
 
@@ -558,10 +573,14 @@ class Digest(object):
 		group.fl.append({"user": bites[1], "status": bites[2], "time": bites[3]})
 
 	def msg(self, group, bites):
-		self.call(bites[0], group, bites[1], group.cleanPM(":".join(bites[6:])))
+		user = bites[1]
+		group.cleanPM(":".join(bites[6:]))
+		self.call(bites[0], group, user, pm)
 
 	def msgoff(self, group, bites):
-		self.call(bites[0], group, bites[1], group.cleanPM(":".join(bites[6:])))
+		user = bites[1]
+		group.cleanPM(":".join(bites[6:]))
+		self.call(bites[0], group, user, pm)
 
 ################################
 #Connections Manager
