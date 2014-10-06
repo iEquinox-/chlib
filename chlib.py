@@ -574,12 +574,12 @@ class Digest(object):
 
 	def msg(self, group, bites):
 		user = bites[1]
-		group.cleanPM(":".join(bites[6:]))
+		pm = group.cleanPM(":".join(bites[6:]))
 		self.call(bites[0], group, user, pm)
 
 	def msgoff(self, group, bites):
 		user = bites[1]
-		group.cleanPM(":".join(bites[6:]))
+		pm = group.cleanPM(":".join(bites[6:]))
 		self.call(bites[0], group, user, pm)
 
 ################################
