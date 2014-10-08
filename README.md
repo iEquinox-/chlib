@@ -7,9 +7,9 @@ Dev channel can be found at https://github.com/cellsheet/chlib/tree/chlib-dev
 
 Requirements: This library requires at this time to have python 3 or greater installed.
 
-Method enabling: no longer needed, each method can be added or removed in the bot without any changes to the library.
+TOS: You may not use this library to explicitely run ANY code that was not created from the original user.
 
-Methods and parameters:
+Methods and parameters (outdated for now):
 
 groups:
 
