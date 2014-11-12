@@ -3,8 +3,6 @@ chlib
 
 A chatango library with a flexable manager - Stable channel.
 
-Dev channel can be found at https://github.com/cellsheet/chlib/tree/chlib-dev
-
 Requirements: This library requires at this time to have python 3 or greater installed.
 
 TOS: You may not use this library to explicitely run ANY code that was not created from the original user OR ported from any previous bot using the ch.py library UNLESS you made any code that ran on ch.py FROM YOUR EXISING KNOWLEDGE.
