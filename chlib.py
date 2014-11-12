@@ -3,6 +3,8 @@
 #Made by: cellsheet
 #Description: My take on a flexable chatango library.
 #Contact: n.chatango.com
+#Branch Maintainer: Piks/Pika
+#Contact: pika.chatango.com
 #Release date: 7/31/2013
 #Version: 1.7
 ################################
