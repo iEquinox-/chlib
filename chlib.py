@@ -578,6 +578,8 @@ class Digest(object):
 		user = bites[1]
 		pm = group.cleanPM(":".join(bites[6:]))
 		self.call(bites[0], group, user, pm)
+		if pm[0] == self.manager.prefix:
+			self.call(bites[0]+"cmd", group, user, pm, pm.split()[0][1:], pm.split()[1:])
 
 	def msgoff(self, group, bites):
 		user = bites[1]

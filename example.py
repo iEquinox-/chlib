@@ -3,11 +3,10 @@ import chlib
 class Bot(chlib.ConnectionManager):
 
 		def start(self):
-			groups = ["example", "example2"] #list your group names instead
+			groups = ["example1","example2"] #list your group names instead
 			for group in groups:
 				self.addGroup(group)
 			self.prefix = "!" #optional, just won't call any commands if not specified.
-
 		def recvdenied(self, group):
 			print("Failed to connect to "+group.name)
 
@@ -22,13 +21,14 @@ class Bot(chlib.ConnectionManager):
 
 		def recvCommand(self, group, user, auth, post, cmd, args):
 			if cmd == "a": group.sendPost("AAAAAAAAAAAAAA")
-
 		def recvPost(self, group, user, post):
 			print(user+": "+post.post)
 
 		def recvmsg(self, group, user, pm):
 			print("PM: "+user+": "+pm)
 			self.sendPM(user, pm) # echo
+		def recvmsgcmd(self, group, user, pm, cmd, args):
+			print(user+":"+pm+":"+cmd+":["+",".join(args)+"]")
 
 		def recvkickingoff(self, group):
 			self.removeGroup(group.name)
