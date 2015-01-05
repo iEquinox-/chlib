@@ -1,6 +1,8 @@
 chlib
 =====
 
+***NOTE*** This library is now maintained by piks and sorch, any issues regarding chlib can be redirected to one of these two. Also I recommend checking out coco as it is the successor in terms of the continuity of the chatango library history currently located at https://github.com/Sorch/coco
+
 A chatango library with a flexable manager - Stable channel.
 
 Requirements: This library requires at this time to have python 3 or greater installed.
