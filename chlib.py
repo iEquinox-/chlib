@@ -46,17 +46,20 @@ def getServer(group):
 class Generate:
 
 	def aid(self, n, uid):
-		'''Generate Anon ID number'''
+	'''Convert a number plus a user's uid into the user's anon id.
+	The n number is either:
+	-the user's join time (for use in g_participants and participant)
+	-the anon's namecolor (for use in b)'''
+		n,uid = str(int(float(n))),str(uid) #allows input in either number or string format, and converts from float (12345678.90) time number to int (12345678)
 		try:
-			if (int(n) == 0) or (len(n) < 4): n = "3452"
-		except ValueError:
-			n = "3452"
-		if n != "3452":
-			n = str(int(n))[-4:]
-		v1, v5 = 0, ""
-		for i in range(0, len(n)):
-			v5 += str(int(n[i:][:1])+int(str(uid)[4:][:4][i:][:1]))[len(str(int(n[i:][:1])+int(str(uid)[4:][:4][i:][:1]))) - 1:]
-		return v5
+			if int(n)==0 or len(n)<4:n = "3452"
+		except:n = "3452"
+		n = n[-4:]
+		an, u = "", str(uid)[4:][:4]
+		z = list(zip(n,u))
+		for i,v in z:
+			an += str(int(i)+int(v))[-1]
+		return an
 
 	def auth(self):
 		'''Generate auth token'''
