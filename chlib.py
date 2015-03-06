@@ -2,7 +2,7 @@
 #File: chlib.py
 #Made by: cellsheet
 #Description: My take on a flexable chatango library.
-#Contact: n.chatango.com
+#Contact: piks.chatango.com, cellsheet.chatango.com, or sorch.chatango.com.
 #Release date: 7/31/2013
 #Version: 1.7
 ################################
