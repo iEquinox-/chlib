@@ -27,16 +27,19 @@ import select
 
 weights = [['5', 75], ['6', 75], ['7', 75], ['8', 75], ['16', 75], ['17', 75], ['18', 75], ['9', 95], ['11', 95], ['12', 95], ['13', 95], ['14', 95], ['15', 95], ['19', 110], ['23', 110], ['24', 110], ['25', 110], ['26', 110], ['28', 104], ['29', 104], ['30', 104], ['31', 104], ['32', 104], ['33', 104], ['35', 101], ['36', 101], ['37', 101], ['38', 101], ['39', 101], ['40', 101], ['41', 101], ['42', 101], ['43', 101], ['44', 101], ['45', 101], ['46', 101], ['47', 101], ['48', 101], ['49', 101], ['50', 101], ['52', 110], ['53', 110], ['55', 110], ['57', 110], ['58', 110], ['59', 110], ['60', 110], ['61', 110], ['62', 110], ['63', 110], ['64', 110], ['65', 110], ['66', 110], ['68', 95], ['71', 116], ['72', 116], ['73', 116], ['74', 116], ['75', 116], ['76', 116], ['77', 116], ['78', 116], ['79', 116], ['80', 116], ['81', 116], ['82', 116], ['83', 116], ['84', 116]]
 specials = {"de-livechat": 5, "ver-anime": 8, "watch-dragonball": 8, "narutowire": 10, "dbzepisodeorg": 10, "animelinkz": 20, "kiiiikiii": 21, "soccerjumbo": 21, "vipstand": 21, "cricket365live": 21, "pokemonepisodeorg": 22, "watchanimeonn": 22, "leeplarp": 27, "animeultimacom": 34, "rgsmotrisport": 51, "cricvid-hitcric-": 51, "tvtvanimefreak": 54, "stream2watch3": 56, "mitvcanal": 56, "sport24lt": 56, "ttvsports": 56, "eafangames": 56, "myfoxdfw": 67, "peliculas-flv": 69, "narutochatt": 70}
+
 def getServer(group):
-	'''Return server number'''
-	if group in specials.keys():return specials[group]
-	group = group.replace("-","q").replace("_","q")
+	"""Return server number"""
+	if group in specials.keys():
+		return specials[group]
+	group = re.sub("-|_", "q", group)
 	wt, gw = sum([n[1] for n in weights]), 0
-	num1 = 1000 if len(group)<7 else max(int(group[6:9],36),1000)
+	num1 = 1000 if len(group) < 7 else max(int(group[6:9], 36), 1000)
 	num2 = (int(group[:5],36) % num1) / num1
-	for i,v in weights:
+	for i, v in weights:
 		gw += v / wt
-		if gw >= num2:return i
+		if gw >= num2:
+			return i
 	return None
 
 ################################
@@ -46,19 +49,22 @@ def getServer(group):
 class Generate:
 
 	def aid(self, n, uid):
-	'''Convert a number plus a user's uid into the user's anon id.
+	"""Convert a number plus a user's uid into the user's anon id.
 	The n number is either:
-	-the user's join time (for use in g_participants and participant)
-	-the anon's namecolor (for use in b)'''
-		n,uid = str(int(float(n))),str(uid) #allows input in either number or string format, and converts from float (12345678.90) time number to int (12345678)
+	-The user's join time (for use in g_participants and participant)
+	-The anon's namecolor (for use in b)
+	"""
+		n, uid = str(n).split(".")[0], str(uid)  # Fault-Tolerance
 		try:
-			if int(n)==0 or len(n)<4:n = "3452"
-		except:n = "3452"
+			if int(n) == 0 or len(n) < 4:
+				n = "3452"
+		except:
+			n = "3452"
 		n = n[-4:]
 		an, u = "", str(uid)[4:][:4]
-		z = list(zip(n,u))
-		for i,v in z:
-			an += str(int(i)+int(v))[-1]
+		z = list(zip(n, u))
+		for i, v in z:
+			an += str(int(i) + int(v))[-1]
 		return an
 
 	def auth(self):
