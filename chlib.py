@@ -49,11 +49,11 @@ def getServer(group):
 class Generate:
 
 	def aid(self, n, uid):
-	"""Convert a number plus a user's uid into the user's anon id.
-	The n number is either:
-	-The user's join time (for use in g_participants and participant)
-	-The anon's namecolor (for use in b)
-	"""
+		"""Convert a number plus a user's uid into the user's anon id.
+		The n number is either:
+		-The user's join time (for use in g_participants and participant)
+		-The anon's namecolor (for use in b)
+		"""
 		n, uid = str(n).split(".")[0], str(uid)  # Fault-Tolerance
 		try:
 			if int(n) == 0 or len(n) < 4:
