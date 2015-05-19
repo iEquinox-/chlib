@@ -29,7 +29,7 @@ weights = [['5', 75], ['6', 75], ['7', 75], ['8', 75], ['16', 75], ['17', 75], [
 specials = {"de-livechat": 5, "ver-anime": 8, "watch-dragonball": 8, "narutowire": 10, "dbzepisodeorg": 10, "animelinkz": 20, "kiiiikiii": 21, "soccerjumbo": 21, "vipstand": 21, "cricket365live": 21, "pokemonepisodeorg": 22, "watchanimeonn": 22, "leeplarp": 27, "animeultimacom": 34, "rgsmotrisport": 51, "cricvid-hitcric-": 51, "tvtvanimefreak": 54, "stream2watch3": 56, "mitvcanal": 56, "sport24lt": 56, "ttvsports": 56, "eafangames": 56, "myfoxdfw": 67, "peliculas-flv": 69, "narutochatt": 70}
 
 def getServer(group):
-	"""Return server number"""
+	'''Return server number'''
 	if group in specials.keys():
 		return specials[group]
 	group = re.sub("-|_", "q", group)
@@ -49,11 +49,7 @@ def getServer(group):
 class Generate:
 
 	def aid(self, n, uid):
-		"""Convert a number plus a user's uid into the user's anon id.
-		The n number is either:
-		-The user's join time (for use in g_participants and participant)
-		-The anon's namecolor (for use in b)
-		"""
+		'''Generate anon ID'''
 		n, uid = str(n).split(".")[0], str(uid)  # Fault-Tolerance
 		try:
 			if int(n) == 0 or len(n) < 4:
@@ -213,7 +209,7 @@ class Group(object):
 
 	def cleanPM(self, pm):
 		'''Clean's all PM XML'''
-		return re.sub("<i s=\"sm://(.*?)\" w=\"(.*?)\" h=\"(.*?)\"/> ", "", re.sub(" <i s=\"sm://(.*?)\" w=\"(.*?)\" h=\"(.*?)\"/>", "", re.sub("<mws c='(.*?)' s='(.*?)'/>", "", re.sub("<g x(.*?)\">", "", re.sub("<n(.*?)/>", "", re.sub("</(.*?)>", "", pm.replace("<m v=\"1\">", "").replace("<g xs0=\"0\">", "")))))))
+		return re.sub("<(.*?)>", "", pm)
 
 	def sendPost(self, post, html = True):
 		'''Send a post to the group'''
@@ -250,7 +246,8 @@ class Group(object):
 		elif user:
 			self.user = "#" + user
 			self.sendCmd("blogin", user) #temporary user
-		else: self.sendCmd("blogin")
+		else:
+			self.sendCmd("blogin")
 
 	def logout(self):
 		'''Log's out of an account'''
@@ -464,16 +461,18 @@ class Digest(object):
 		group.limited = int(bites[2])
 
 	def b(self, group, bites):
-		try:
-			fTag = re.search("<f x(.*?)>", bites[10]).group(1)
-			fSize = fTag[:2]
-			fFace = re.search("(.*?)=\"(.*?)\"", fTag).group(2)
-			fColor = re.search(fSize+"(.*?)=\""+fFace+"\"", fTag).group(1)
-		except:
-			fSize = "11"
-			fColor = "000"
+		tag = re.search("<n([a-fA-F0-9]{1,6})\/><f x([\d]{0,2})([0-9a-fA-F]{6}|[0-9a-fA-F]{3}|[0-9a-fA-F]{1})=\"([0-9a-zA-Z]*)\">", bites[10])
+		if tag:
+			nColor = tag.group(1) if tag.group(1) else ""
+			fSize = tag.group(2) if tag.group(2) else ""
+			fColor = tag.group(3) if tag.group(3) else ""
+			fFace = tag.group(4) if tag.group(4) else "0"
+		else:
+			nColor = ""
+			fSize = ""
+			fColor = ""
 			fFace = "0"
-		group.pArray[bites[6]] = type("Post", (object,), {"group": group, "time": bites[1], "user": bites[2].lower() if bites[2] != '' else "#" + bites[3] if bites[3] != '' else "!anon" + Generate.aid(self, re.search("<n(.*?)/>", bites[10]).group(1), bites[4]) if re.search("<n(.*?)/>", bites[10]) != None else "!anon" , "uid": bites[4], "unid": bites[5], "pnum": bites[6], "ip": bites[7], "post": re.sub("<(.*?)>", "", ":".join(bites[10:])).replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&"), "nColor": re.search("<n(.*?)/>", bites[10]).group(1) if re.search("<n(.*?)/>", bites[10]) else "000", "fSize": fSize, "fFace": fFace, "fColor": fColor})
+		group.pArray[bites[6]] = type("Post", (object,), {"group": group, "time": bites[1], "user": bites[2].lower() if bites[2] != '' else "#" + bites[3] if bites[3] != '' else "!anon" + Generate.aid(nColor, bites[4]) if nColor else "!anon" , "uid": bites[4], "unid": bites[5], "pnum": bites[6], "ip": bites[7], "post": re.sub("<(.*?)>", "", ":".join(bites[10:])).replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&#39;", "'").replace("&amp;", "&"), "nColor": nColor, "fSize": fSize, "fFace": fFace, "fColor": fColor})
 
 	def u(self, group, bites):
 		post = group.pArray[bites[1]] if group.pArray.get(bites[1]) else None

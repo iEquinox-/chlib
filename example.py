@@ -21,7 +21,8 @@ class Bot(chlib.ConnectionManager):
 			print("Disconnected from "+group.name)
 
 		def recvCommand(self, group, user, auth, post, cmd, args):
-			if cmd == "a": group.sendPost("AAAAAAAAAAAAAA")
+			if cmd == "a":
+				group.sendPost("AAAAAAAAAAAAAA")
 
 		def recvPost(self, group, user, post):
 			print(user+": "+post.post)
