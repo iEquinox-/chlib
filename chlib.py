@@ -19,7 +19,6 @@ import urllib.request
 import random
 import threading
 import queue
-import select
 
 ################################
 #Get server number
