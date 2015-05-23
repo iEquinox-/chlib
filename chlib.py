@@ -460,7 +460,7 @@ class Digest(object):
 		group.limited = int(bites[2])
 
 	def b(self, group, bites):
-		tag = re.search("<n([a-fA-F0-9]{1,6})\/><f x([\d]{0,2})([0-9a-fA-F]{6}|[0-9a-fA-F]{3}|[0-9a-fA-F]{1})=\"([0-9a-zA-Z]*)\">", bites[10])
+		tag = re.search("(<n([a-fA-F0-9]{1}|[a-fA-F0-9]{3}|[a-fA-F0-9]{6})\/>)?(<f x([\d]{0}|[\d]{2})([0-9a-fA-F]{1}|[0-9a-fA-F]{3}|[0-9a-fA-F]{6})=\"([0-9a-zA-Z]*)\">)?", bites[10])
 		if tag:
 			nColor = tag.group(1) if tag.group(1) else ""
 			fSize = tag.group(2) if tag.group(2) else ""
